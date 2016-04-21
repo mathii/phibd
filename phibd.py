@@ -117,6 +117,7 @@ def estimate_sharing(job):
     auto_state_proportions=np.sum(lengths, axis=0)/auto_total
 
     return {"pair":job["pair"],
+            "p":hmm.p,
             "auto_SNPs":sum([len(job["chr"+x]["states"]) for x in AUTOSOMES]),
             "auto_total":auto_total,
             "auto_state_total":auto_state_total,
