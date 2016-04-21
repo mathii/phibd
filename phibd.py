@@ -4,7 +4,6 @@ from __future__ import division, print_function
 import sys, argparse, pyEigenstrat, itertools
 import phibd_hmm, phibd_interpret
 import numpy as np
-import pdb
 
 ################################################################################
 #Default human-centric!
@@ -92,7 +91,7 @@ def main(options):
     jobs=make_jobs(data, options)
     print("Detecting IBD", file=sys.stderr)
     results=[estimate_sharing(job) for job in jobs]
-    print("Interpreting output", file=sys.stderr)
+    print("Interpreting results", file=sys.stderr)
     phibd_interpret.simple_autosomes(results)
 
 ################################################################################

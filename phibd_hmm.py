@@ -19,8 +19,8 @@ class hmm2(object):
         self.obs=obs
         self.pos=pos
         self.n_obs=len(obs)
-        p=np.mean(self.obs) #Estimate the sharing prob by genome-wide Problem
-        self._em=self.emission_matrix(p)
+        self.p=np.mean(self.obs) #Estimate the sharing prob by genome-wide Problem
+        self._em=self.emission_matrix(self.p)
         self.n_states=self._em.shape[0]
         
         
