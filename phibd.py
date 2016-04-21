@@ -77,7 +77,6 @@ def make_jobs(data, options):
     """
     Create all the jobs
     """
-    print("Building job list", file=sys.stderr)
     pairs=make_pairs(data, options)
     jobs=[get_job(data, x) for x in pairs]
     return jobs
@@ -89,8 +88,11 @@ def main(options):
     Run
     """
     data=pyEigenstrat.load(options.eigenstrat)
+    print("Building job list", file=sys.stderr)
     jobs=make_jobs(data, options)
+    print("Detecting IBD", file=sys.stderr)
     results=[estimate_sharing(job) for job in jobs]
+    print("Interpreting output", file=sys.stderr)
     phibd_interpret.simple_autosomes(results)
 
 ################################################################################
