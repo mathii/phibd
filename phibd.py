@@ -2,6 +2,7 @@
 
 from __future__ import division, print_function
 import sys, argparse, pyEigenstrat, itertools
+from multiprocessing import Pool
 import phibd_hmm, phibd_interpret
 import numpy as np
 
@@ -10,9 +11,6 @@ import numpy as np
 
 AUTOSOMES=["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11",
            "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21"]
-CHRX=["23"]
-CHRY=["24"]
-CHROMS=AUTOSOMES+CHRX+CHRY
 
 ################################################################################
 
@@ -27,8 +25,22 @@ def parse_options():
                         "List of individuals to include (default all)")
     parser.add_argument('-p', '--pairs', type=str, default="", help=
                         "List of pairs to test (default individuals*individuals)")
+    parser.add_argument('-m,', '--min_chunk', type=float, default=10.0, help=
+                        "Filtered results remove chunks less than this size")
+    parser.add_argument('-n,', '--ncore', type=int, default=1, help=
+                        "number of cores to parallelize IBD computation")
+    parser.add_argument('-a,', '--auto', type=str, default=",".join(AUTOSOMES), help=
+                        "Comma separated list of chromosomes to treat as autosomes")
+    parser.add_argument('-x,', '--chrx', type=str, default="23".join(AUTOSOMES), help=
+                        "Chromosome to treat as X")
+    parser.add_argument('-y,', '--chry', type=str, default="24".join(AUTOSOMES), help=
+                        "Chromosome to treat as Y")
 
-    return parser.parse_args()
+    options=parser.parse_args()
+    options.auto=options.auto.split(",")
+    options.chromosomes=options.auto+[options.chrx, options.chry]
+
+    return options
 
 ################################################################################
 
@@ -47,7 +59,7 @@ def make_pairs(data, options):
     
 ################################################################################
 
-def get_job(data, pair):
+def get_job(data, pair, options):
     """
     Get the match/mismatch and position matrix for chromosome each pair
     """
@@ -58,8 +70,8 @@ def get_job(data, pair):
     i1=np.where(data.ind["IND"]==p1)[0][0]
     g1=data.geno()[:,i1]
     
-    job={"pair":pair}
-    for chrom in  CHROMS:
+    job={"pair":pair, "options":options}
+    for chrom in  options.chromosomes:
         include = data.snp["CHR"]==chrom
         g0c=g0[include]
         g1c=g1[include]
@@ -77,7 +89,7 @@ def make_jobs(data, options):
     Create all the jobs
     """
     pairs=make_pairs(data, options)
-    jobs=[get_job(data, x) for x in pairs]
+    jobs=[get_job(data, x, options) for x in pairs]
     return jobs
     
 ################################################################################
@@ -90,7 +102,16 @@ def main(options):
     print("Building job list", file=sys.stderr)
     jobs=make_jobs(data, options)
     print("Detecting IBD", file=sys.stderr)
-    results=[estimate_sharing(job) for job in jobs]
+    if options.min_chunk>0:
+        print("Restricting to chunks > "+str(options.min_chunk)+"Mb", file=sys.stderr)
+
+    if options.ncore>1:
+        print("Using "+str(options.ncore)+" cores", file=sys.stderr)
+        pool=Pool(options.ncore)
+        results=pool.map(estimate_sharing, jobs)
+        pool.close()
+    else:
+        results=[estimate_sharing(job) for job in jobs]
     print("Interpreting results", file=sys.stderr)
     phibd_interpret.simple_autosomes(results)
 
@@ -107,21 +128,39 @@ def estimate_sharing(job):
     aggregated over the autosomes and X
     """
     chunks=[]
-    for chrom in AUTOSOMES:
+    het=[]
+    for chrom in job["options"].auto:
         hmm=phibd_hmm.hmm2(job["pair"], job["chr"+chrom]["states"], job["chr"+chrom]["pos"])
         chunks.append(hmm.get_chunks())
-        
+        het.append(hmm.p)
+    
+    min_length_b=job["options"].min_chunk*1e6
+    lengths_filtered=np.array([[sum([z for z in x if z>min_length_b]) for x in y] for y in chunks])
     lengths=np.array([[sum(x) for x in y] for y in chunks])
+    counts=np.array([[len(x) for x in y] for y in chunks])
+    means=np.array([[np.mean(x) if len(x) else np.NaN for x in y ] for y in chunks])
     auto_total=np.sum(lengths)
+    auto_total_filtered=np.sum(lengths_filtered)
     auto_state_total=np.sum(lengths, axis=0)
+    auto_state_total_filtered=np.sum(lengths_filtered, axis=0)
     auto_state_proportions=np.sum(lengths, axis=0)/auto_total
+    auto_state_proportions_filtered=auto_state_total_filtered/auto_total_filtered
 
     return {"pair":job["pair"],
+            "p":np.mean(het),
             "auto_SNPs":sum([len(job["chr"+x]["states"]) for x in AUTOSOMES]),
             "auto_total":auto_total,
             "auto_state_total":auto_state_total,
             "auto_state_proportions":auto_state_proportions,
-            "auto_lengths":lengths}
+            "auto_chunks":chunks,
+            "auto_lengths":lengths,
+            "auto_counts":counts,
+            "auto_means":means,
+            "auto_total_filtered":auto_total_filtered,
+            "auto_state_total_filtered":auto_state_total_filtered,
+            "auto_state_proportions_filtered":auto_state_proportions_filtered,
+            "auto_lengths_filtered":lengths_filtered,
+            }
     
     
 ################################################################################
