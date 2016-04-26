@@ -34,8 +34,8 @@ class hmm2(object):
         matrix[0,1]=self.p
         matrix[1,0]=0.75*(1-self.p)
         matrix[1,1]=0.25*(1+3*self.p)
-        matrix[2,0]=0.01
-        matrix[2,1]=0.99
+        matrix[2,0]=0.5*(1-self.p)
+        matrix[2,1]=0.5*(1+self.p)
         
         return matrix
     
@@ -146,7 +146,7 @@ class multi_hmm(object):
         x=prop[1]
         y=prop[2]
 #        self.p=(self.base_p-0.25*x)/(1-0.25*x)
-        self.p=(self.base_p-0.25*x-y)/(1-0.25*x-y)
+        self.p=(self.base_p-0.25*x-0.5*y)/(1-0.25*x-0.5*y)
         for hmm in self.hmms:
             hmm.p=self.p
 
