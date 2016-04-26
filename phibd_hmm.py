@@ -6,6 +6,8 @@ Created on 20 Apr 2016
 from __future__ import division, print_function
 import numpy as np
 
+################################################################################
+
 class hmm2(object):
     '''
     HMM-solving object
@@ -20,19 +22,18 @@ class hmm2(object):
         self.pos=pos
         self.n_obs=len(obs)
         self.p=np.mean(self.obs) #Estimate the sharing prob by genome-wide Problem
-        self._em=self.emission_matrix(self.p)
-        self.n_states=self._em.shape[0]
+        self.n_states=self.emission_matrix().shape[0]
         
-        
-    def emission_matrix(self, p):
+                
+    def emission_matrix(self):
         """
         indexed by IBD_state,shared
         """
         matrix=np.zeros((2,2), dtype=np.float)
-        matrix[0,0]=1-p
-        matrix[0,1]=p
-        matrix[1,0]=0.75*(1-p)
-        matrix[1,1]=0.25*(1+3*p)
+        matrix[0,0]=1-self.p
+        matrix[0,1]=self.p
+        matrix[1,0]=0.75*(1-self.p)
+        matrix[1,1]=0.25*(1+3*self.p)
         
         return matrix
     
@@ -82,14 +83,15 @@ class hmm2(object):
         trans=self.transition_matrix(1e-8)
         vit=np.zeros((2, len(self.obs)), dtype=np.float) #Viterbi matrix 
         tb=np.zeros((2,len(self.obs)), dtype=np.short) #Traceback matrix
+        em=self.emission_matrix()
         
-        vit[:,0]=self._em[:,self.obs[0]] 
+        vit[:,0]=em[:,self.obs[0]] 
 
         for i in xrange(1,len(self.obs)):
             for jj in range(self.n_states):
                 col=trans[i-1]+np.zeros((self.n_states))
                 col[jj]=1-col[jj]
-                col=col*vit[:,i-1]*self._em[:,self.obs[i]] 
+                col=col*vit[:,i-1]*em[:,self.obs[i]] 
                 best=np.argmax(col)
                 vit[jj,i]=col[best]
                 tb[jj,i]=best
@@ -98,6 +100,62 @@ class hmm2(object):
                 
             self._vit=vit
             self._tb=tb
+
+#END Class      
+################################################################################
+  
+class multi_hmm(object):
+    """  
+    Contains multiple hmms
+    """
+    
+    def __init__(self, hmms, tolerance=0.001, max_iters=5):
+        self.hmms=hmms
+        #Set the p on each of the sub hmms to be equal to the mean
+        self.base_p=np.mean([hmm.p for hmm in self.hmms])
+        self.p=self.base_p
+        for hmm in self.hmms:
+            hmm.p=self.p
+        self.max_iters=max_iters
+        self.tol=tolerance
+
+    def get_chunks(self):
+        """
+        get the chunk proportions
+        """
+        return [hmm.get_chunks() for hmm in self.hmms]
         
-        
-        
+    def get_proportions(self):
+        """
+        get the proportion of the genome in each IBD state
+        """
+        chunks= self.get_chunks()
+        lengths=np.array([[sum(x) for x in y] for y in chunks])
+        total=np.sum(lengths)
+        proportions=np.sum(lengths, axis=0)/total
+        return proportions
+
+    def update_p(self, x):
+        """
+        Update p when a proportion x of the genome is IBD 
+        Also update the sub hmms
+        """
+        self.p=(self.base_p-0.25*x)/(1-0.25*x)
+        for hmm in self.hmms:
+            hmm.p=self.p
+
+       
+    def train(self):
+        """
+        Viterbi training
+        """
+        old_p=-1
+        iter=0
+        while abs(old_p-self.p)>self.tol and iter<self.max_iters:
+            old_p=self.p
+            [hmm.Viterbi() for hmm in self.hmms]
+            prop=np.sum(self.get_proportions()[1:])
+            print("%1.4f\t%1.4f"%(self.p, prop))
+            self.update_p(prop)
+            iter+=1
+            

@@ -25,10 +25,14 @@ def parse_options():
                         "List of individuals to include (default all)")
     parser.add_argument('-p', '--pairs', type=str, default="", help=
                         "List of pairs to test (default individuals*individuals)")
-    parser.add_argument('-m,', '--min_chunk', type=float, default=10.0, help=
+    parser.add_argument('-m', '--min_chunk', type=float, default=10.0, help=
                         "Filtered results remove chunks less than this size")
-    parser.add_argument('-n,', '--ncore', type=int, default=1, help=
+    parser.add_argument('-n', '--ncore', type=int, default=1, help=
                         "number of cores to parallelize IBD computation")
+    parser.add_argument('-t', '--max_iters', type=int, default=15, help=
+                        "Maximum number of training iterations")
+    parser.add_argument('-l', '--tolerance', type=float, default=0.001, help=
+                        "Heterozygosity tolerance in training algorithm")
     parser.add_argument('-a,', '--auto', type=str, default=",".join(AUTOSOMES), help=
                         "Comma separated list of chromosomes to treat as autosomes")
     parser.add_argument('-x,', '--chrx', type=str, default="23".join(AUTOSOMES), help=
@@ -129,10 +133,13 @@ def estimate_sharing(job):
     """
     chunks=[]
     het=[]
+    hmms=[]
     for chrom in job["options"].auto:
-        hmm=phibd_hmm.hmm2(job["pair"], job["chr"+chrom]["states"], job["chr"+chrom]["pos"])
-        chunks.append(hmm.get_chunks())
-        het.append(hmm.p)
+        hmms.append(phibd_hmm.hmm2(job["pair"], job["chr"+chrom]["states"], job["chr"+chrom]["pos"]))
+        
+    multi_hmm=phibd_hmm.multi_hmm(hmms, tolerance=job["options"].tolerance, max_iters=job["options"].max_iters)
+    multi_hmm.train()
+    chunks=multi_hmm.get_chunks()
     
     min_length_b=job["options"].min_chunk*1e6
     lengths_filtered=np.array([[sum([z for z in x if z>min_length_b]) for x in y] for y in chunks])
@@ -147,7 +154,7 @@ def estimate_sharing(job):
     auto_state_proportions_filtered=auto_state_total_filtered/auto_total_filtered
 
     return {"pair":job["pair"],
-            "p":np.mean(het),
+            "p":multi_hmm.p,
             "auto_SNPs":sum([len(job["chr"+x]["states"]) for x in AUTOSOMES]),
             "auto_total":auto_total,
             "auto_state_total":auto_state_total,
