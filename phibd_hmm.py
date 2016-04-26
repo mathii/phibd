@@ -155,7 +155,6 @@ class multi_hmm(object):
             old_p=self.p
             [hmm.Viterbi() for hmm in self.hmms]
             prop=np.sum(self.get_proportions()[1:])
-            print("%1.4f\t%1.4f"%(self.p, prop))
             self.update_p(prop)
             iter+=1
             
