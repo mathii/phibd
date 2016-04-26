@@ -29,11 +29,13 @@ class hmm2(object):
         """
         indexed by IBD_state,shared
         """
-        matrix=np.zeros((2,2), dtype=np.float)
+        matrix=np.zeros((3,2), dtype=np.float)
         matrix[0,0]=1-self.p
         matrix[0,1]=self.p
         matrix[1,0]=0.75*(1-self.p)
         matrix[1,1]=0.25*(1+3*self.p)
+        matrix[2,0]=0.01
+        matrix[2,1]=0.99
         
         return matrix
     
@@ -81,8 +83,8 @@ class hmm2(object):
         Run the Viterbi algorithm
         """
         trans=self.transition_matrix(1e-8)
-        vit=np.zeros((2, len(self.obs)), dtype=np.float) #Viterbi matrix 
-        tb=np.zeros((2,len(self.obs)), dtype=np.short) #Traceback matrix
+        vit=np.zeros((self.n_states, len(self.obs)), dtype=np.float) #Viterbi matrix 
+        tb=np.zeros((self.n_states,len(self.obs)), dtype=np.short) #Traceback matrix
         em=self.emission_matrix()
         
         vit[:,0]=em[:,self.obs[0]] 
@@ -109,7 +111,7 @@ class multi_hmm(object):
     Contains multiple hmms
     """
     
-    def __init__(self, hmms, tolerance=0.001, max_iters=5):
+    def __init__(self, hmms, tolerance=0.001, max_iters=15):
         self.hmms=hmms
         #Set the p on each of the sub hmms to be equal to the mean
         self.base_p=np.mean([hmm.p for hmm in self.hmms])
@@ -135,12 +137,16 @@ class multi_hmm(object):
         proportions=np.sum(lengths, axis=0)/total
         return proportions
 
-    def update_p(self, x):
+    def update_p(self):
         """
         Update p when a proportion x of the genome is IBD 
         Also update the sub hmms
         """
-        self.p=(self.base_p-0.25*x)/(1-0.25*x)
+        prop=self.get_proportions()
+        x=prop[1]
+        y=prop[2]
+#        self.p=(self.base_p-0.25*x)/(1-0.25*x)
+        self.p=(self.base_p-0.25*x-y)/(1-0.25*x-y)
         for hmm in self.hmms:
             hmm.p=self.p
 
@@ -154,7 +160,8 @@ class multi_hmm(object):
         while abs(old_p-self.p)>self.tol and iter<self.max_iters:
             old_p=self.p
             [hmm.Viterbi() for hmm in self.hmms]
-            prop=np.sum(self.get_proportions()[1:])
-            self.update_p(prop)
+            prop=self.get_proportions()
+            #print("%1.4f\t%1.4f\t%1.4f\t%1.4f"%(self.p, prop[1], prop[2], prop[1]+prop[2]))
+            self.update_p()
             iter+=1
             
