@@ -5,6 +5,7 @@ import sys, argparse, pyEigenstrat, itertools
 from multiprocessing import Pool
 import phibd_hmm, phibd_interpret
 import numpy as np
+import pdb
 
 ################################################################################
 #Default human-centric!
@@ -140,7 +141,7 @@ def estimate_sharing(job):
     multi_hmm=phibd_hmm.multi_hmm(hmms, tolerance=job["options"].tolerance, max_iters=job["options"].max_iters)
     multi_hmm.train()
     chunks=multi_hmm.get_chunks()
-    
+    pdb.set_trace()
     min_length_b=job["options"].min_chunk*1e6
     lengths_filtered=np.array([[sum([z for z in x if z>min_length_b]) for x in y] for y in chunks])
     lengths=np.array([[sum(x) for x in y] for y in chunks])
