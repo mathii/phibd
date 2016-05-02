@@ -91,8 +91,15 @@ class hmm2(object):
 
         for i in xrange(1,len(self.obs)):
             for jj in range(self.n_states):
-                col=trans[i-1]+np.zeros((self.n_states))
+                tp=trans[i-1]
+                #col is column of Viterbi matrix
+                #Only transition from adjacent states. 
+                col=np.zeros((self.n_states))
                 col[jj]=1-col[jj]
+                if jj>0:
+                    col[jj-1]=tp
+                if jj<self.n_states-1:
+                    col[jj+1]=tp
                 col=col*vit[:,i-1]*em[:,self.obs[i]] 
                 best=np.argmax(col)
                 vit[jj,i]=col[best]
@@ -161,7 +168,7 @@ class multi_hmm(object):
             old_p=self.p
             [hmm.Viterbi() for hmm in self.hmms]
             prop=self.get_proportions()
-            print("%1.4f\t%1.4f\t%1.4f\t%1.4f"%(self.p, prop[1], prop[2], prop[1]+prop[2]))
+            #print("%1.4f\t%1.4f\t%1.4f\t%1.4f"%(self.p, prop[1], prop[2], prop[1]+prop[2]))
             self.update_p()
             iter+=1
             
