@@ -118,13 +118,42 @@ def main(options):
     if options.ncore>1:
         print("Using "+str(options.ncore)+" cores", file=sys.stderr)
         pool=Pool(options.ncore)
-        results=pool.map(estimate_sharing, jobs)
+        results=pool.map(estimate_sharing_wrapper, jobs)
         pool.close()
     else:
         results=[estimate_sharing(job) for job in jobs]
     print("Interpreting results", file=sys.stderr)
     phibd_interpret.simple_autosomes(results)
 
+################################################################################
+
+def estimate_sharing_wrapper(job):
+    """
+    Print the error for this pair but continue to run
+    """
+    
+    try:
+        return(estimate_sharing(job))
+    except Exception:
+        print(">>> Error in pair "+job["pair"], file=sys.stderr)
+        print(Exception, file=sys.stderr)
+        return {"pair":job["pair"],
+            "p":-1,
+            "auto_SNPs":sum([len(job["chr"+x]["states"]) for x in AUTOSOMES]),
+            "auto_total":-1,
+            "auto_state_total":-1,
+            "auto_state_proportions":-1,
+            "auto_chunks":-1,
+            "auto_lengths":-1,
+            "auto_counts":-1,
+            "auto_means":-1,
+            "auto_total_filtered":-1,
+            "auto_state_total_filtered":-1,
+            "auto_state_proportions_filtered":-1,
+            "auto_lengths_filtered":-1,
+            }
+
+        
 ################################################################################
 
 def estimate_sharing(job):
