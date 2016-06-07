@@ -27,8 +27,8 @@ def parse_options():
                         "List of pairs to test (default individuals*individuals)")
     parser.add_argument('-m', '--min_chunk', type=float, default=10.0, help=
                         "Filtered results remove chunks less than this size")
-    parser.add_argument('-r', '--min_markers', type=int, default=1000, help=
-                        "Only include pairs with at least this many markers in common")
+    parser.add_argument('-r', '--min_markers', type=int, default=200, help=
+                        "Only include pairs with at least this many markers in common on every chromosome")
     parser.add_argument('-n', '--ncore', type=int, default=1, help=
                         "number of cores to parallelize IBD computation")
     parser.add_argument('-t', '--max_iters', type=int, default=15, help=
@@ -37,9 +37,9 @@ def parse_options():
                         "Heterozygosity tolerance in training algorithm")
     parser.add_argument('-a,', '--auto', type=str, default=",".join(AUTOSOMES), help=
                         "Comma separated list of chromosomes to treat as autosomes")
-    parser.add_argument('-x,', '--chrx', type=str, default="23".join(AUTOSOMES), help=
+    parser.add_argument('-x,', '--chrx', type=str, default="23", help=
                         "Chromosome to treat as X")
-    parser.add_argument('-y,', '--chry', type=str, default="24".join(AUTOSOMES), help=
+    parser.add_argument('-y,', '--chry', type=str, default="24", help=
                         "Chromosome to treat as Y")
 
     options=parser.parse_args()
@@ -86,8 +86,8 @@ def get_job(data, pair, options):
         pos=data.snp["POS"][include][nonmissing]
         job["chr"+chrom]={"states":states, "pos":pos}
     
-    job["total_markers"]=sum([len(job["chr"+chrom]) for chrom in  options.chromosomes])
-    job["min_markers"]=min([len(job["chr"+chrom]) for chrom in  options.chromosomes])
+    job["total_markers"]=sum([len(job["chr"+chrom]["pos"]) for chrom in  options.chromosomes])
+    job["min_markers"]=min([len(job["chr"+chrom]["pos"]) for chrom in  options.chromosomes])
     
     return job
     
