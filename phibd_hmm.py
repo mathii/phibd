@@ -17,37 +17,18 @@ class hmm2(object):
         '''
         Constructor
         '''
-<<<<<<< HEAD
-        self.pair = pair
-        self.obs = obs
-        self.pos = pos
-        self.n_obs = len(obs)
-        self.p = np.mean(self.obs) #Estimate the sharing prob by genome-wide Problem
-        self._em = self.emission_matrix(self.p)
-        self.n_states = self._em.shape[0]
-        self._vit = None
-        self._tb = None
-=======
         self.pair=pair
         self.obs=obs
         self.pos=pos
         self.n_obs=len(obs)
         self.p=np.mean(self.obs) #Estimate the sharing prob by genome-wide Problem
         self.n_states=self.emission_matrix().shape[0]
->>>>>>> 312d45dbe73029a5a3790915a50b08c08ae578d8
         
                 
     def emission_matrix(self):
         """
         indexed by IBD_state,shared
         """
-<<<<<<< HEAD
-        matrix = np.zeros((2,2), dtype=np.float)
-        matrix[0,0] = 1-p
-        matrix[0,1] = p
-        matrix[1,0] = 0.75*(1-p)
-        matrix[1,1] = 0.25*(1+3*p)
-=======
         matrix=np.zeros((3,2), dtype=np.float)
         matrix[0,0]=1-self.p
         matrix[0,1]=self.p
@@ -55,7 +36,6 @@ class hmm2(object):
         matrix[1,1]=0.25*(1+3*self.p)
         matrix[2,0]=0.5*(1-self.p)
         matrix[2,1]=0.5*(1+self.p)
->>>>>>> 312d45dbe73029a5a3790915a50b08c08ae578d8
         
         return matrix
     
@@ -69,8 +49,8 @@ class hmm2(object):
         if not hasattr(self, "_tb"):
             self.Viterbi()
             
-        trace = np.zeros((self.n_obs), dtype=np.int)
-        best = np.argmax(self._vit[:,self.n_obs-1])
+        trace=np.zeros((self.n_obs), dtype=np.short)
+        best=np.argmax(self._vit[:,self.n_obs-1])
         trace[self.n_obs-1]=best
         for i in xrange(1, self.n_obs):
             best=self._tb[trace[self.n_obs-i],self.n_obs-i]
@@ -84,15 +64,15 @@ class hmm2(object):
         """
         trace=self.traceback()
         
-        chunks =  [[] for _ in range(self.n_states)]
+        chunks=[[] for _ in range(self.n_states)]
         
         trace_enum=enumerate(trace)
         i,last_st=trace_enum.next()
         last_st_start=self.pos[i]
         for i,st in trace_enum:
-            if st != last_st:
+            if st!=last_st:
                 chunks[last_st].append(self.pos[i]-last_st_start)
-                last_st = st
+                last_st=st
                 last_st_start=self.pos[i]
         
         chunks[last_st].append(self.pos[i]-last_st_start)
@@ -102,22 +82,6 @@ class hmm2(object):
         """
         Run the Viterbi algorithm
         """
-<<<<<<< HEAD
-        trans = self.transition_matrix(1e-8)
-        vit = np.zeros((2, len(self.obs)), dtype=np.float) #Viterbi matrix 
-        tb = np.zeros((2,len(self.obs)), dtype=np.int) #Traceback matrix
-        
-        vit[:,0] = self._em[:,self.obs[0]] 
-
-        for i in xrange(1,len(self.obs)):
-            for jj in range(self.n_states):
-                col = trans[i-1]+np.zeros((self.n_states))
-                col[jj] = 1-col[jj]
-                col = col*vit[:,i-1]*self._em[:,self.obs[i]] 
-                best = np.argmax(col)
-                vit[jj,i] = col[best]
-                tb[jj,i] = best
-=======
         trans=self.transition_matrix(1e-8)
         vit=np.zeros((self.n_states, len(self.obs)), dtype=np.float) #Viterbi matrix 
         tb=np.zeros((self.n_states,len(self.obs)), dtype=np.short) #Traceback matrix
@@ -140,15 +104,9 @@ class hmm2(object):
                 best=np.argmax(col)
                 vit[jj,i]=col[best]
                 tb[jj,i]=best
->>>>>>> 312d45dbe73029a5a3790915a50b08c08ae578d8
                 
-            vit[:,i] = vit[:,i]/sum(vit[:,i])
+            vit[:,i]=vit[:,i]/sum(vit[:,i])
                 
-<<<<<<< HEAD
-            self._vit = vit
-            self._tb = tb
-        
-=======
             self._vit=vit
             self._tb=tb
 
@@ -214,4 +172,3 @@ class multi_hmm(object):
             self.update_p()
             iter+=1
             
->>>>>>> 312d45dbe73029a5a3790915a50b08c08ae578d8
