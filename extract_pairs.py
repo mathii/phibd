@@ -13,7 +13,8 @@ re.compile("_sister.*$"),
 re.compile("_mother.*$"),
 re.compile("_father.*$"),
 re.compile("_son.*$"),
-re.compile("_daughter.*$")]
+re.compile("_daughter.*$"),
+re.compile("-[0-9]$")]
 
 for line in fileinput.input():
     bits=line.split()
