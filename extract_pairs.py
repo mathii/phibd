@@ -7,11 +7,20 @@ from collections import defaultdict
 import fileinput, re, itertools
 
 inds_by_pop=defaultdict(list)
-strip_rel=re.compile("_[0-9]d_rel.*$")
+strips=[re.compile("_[0-9]d_rel.*$"),
+re.compile("_brother.*$"),
+re.compile("_sister.*$"),
+re.compile("_mother.*$"),
+re.compile("_father.*$"),
+re.compile("_son.*$"),
+re.compile("_daughter.*$")]
 
 for line in fileinput.input():
     bits=line.split()
-    inds_by_pop[strip_rel.sub("", bits[2])].append(bits[0])
+    pop=bits[2]
+    for strip in strips:
+        pop=strip.sub("", pop)
+    inds_by_pop[pop].append(bits[0])
     
 for group in inds_by_pop.values():
     if(len(group)>1):
