@@ -23,6 +23,6 @@ for line in fileinput.input():
         pop=strip.sub("", pop)
     inds_by_pop[pop].append(bits[0])
     
-for group in inds_by_pop.values():
+for pop, group in inds_by_pop.iteritems():
     if(len(group)>1):
-        print("\n".join(["\t".join(x)+"\t"+group for x in itertools.combinations(group, 2)]))
+        print("\n".join(["\t".join(x)+"\t"+pop for x in itertools.combinations(group, 2)]))
