@@ -25,4 +25,4 @@ for line in fileinput.input():
     
 for group in inds_by_pop.values():
     if(len(group)>1):
-        print("\n".join(["\t".join(x) for x in itertools.combinations(group, 2)]))
+        print("\n".join(["\t".join(x)+"\t"+group for x in itertools.combinations(group, 2)]))

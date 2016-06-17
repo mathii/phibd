@@ -1,5 +1,6 @@
 ## Analyse test results
 where <- "~/relatives/v13.1/v13.1_phibd_"
+where <- "~/relatives/v13.1/chaco_phibd_"
 
 data <- read.table(paste0(where, "results.txt"), as.is=TRUE, header=TRUE)
 data$mean <- ifelse(data$count==0, 0, data$mean)
@@ -67,8 +68,8 @@ sib <-  data$p>0.7 & data$p<=0.775 & data$IBD>0.675
 data$Status[duplicate] <- "Duplicate"
 data$Status[parent.child] <- "Parent_child"
 data$Status[unrelated] <- "Unrelated"
-data$Status[deg3] <- "Second_degree"
-data$Status[deg2] <- "Third_degree"
+data$Status[deg3] <- "Third_degree"
+data$Status[deg2] <- "Second_degree"
 data$Status[sib] <- "Siblings"
 
 write.table(data, paste0(where, "results_annotated.txt"), row.names=FALSE, col.names=TRUE, quote=FALSE, sep="\t")
