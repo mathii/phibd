@@ -3,6 +3,7 @@
 from __future__ import division, print_function
 import sys, argparse, pyEigenstrat, itertools
 from multiprocessing import Pool
+from collections import defaultdict
 import phibd_hmm, phibd_interpret
 import numpy as np
 
@@ -21,10 +22,8 @@ def parse_options():
     parser=argparse.ArgumentParser()
     parser.add_argument('-e', '--eigenstrat', type=str, default="", help=
                         "Root for eigenstrat files - i.e {root.snp, root.geno, root.ind}")
-    parser.add_argument('-i', '--individuals', type=str, default="", help=
-                        "List of individuals to include (default all)")
     parser.add_argument('-p', '--pairs', type=str, default="", help=
-                        "List of pairs to test (default individuals*individuals)")
+                        "List of pairs to test (default all pairs)")
     parser.add_argument('-m', '--min_chunk', type=float, default=10.0, help=
                         "Filtered results remove chunks less than this size")
     parser.add_argument('-r', '--min_markers', type=int, default=200, help=
@@ -41,6 +40,8 @@ def parse_options():
                         "Chromosome to treat as X")
     parser.add_argument('-y,', '--chry', type=str, default="24", help=
                         "Chromosome to treat as Y")
+    parser.add_argument('-b,', '--background', type=str, default="none", help=
+                        "none|population|individual: what to use as background sharing")
 
     options=parser.parse_args()
     options.auto=options.auto.split(",")
@@ -54,12 +55,10 @@ def make_pairs(data, options):
     """
     If we passed a list of pairs, use all those pairs
     Otherwise if we passed a list of individuals, use all pairs containing those individuals
-    Otherwise use all pairs.
+    Otherwise use all pairs. Third column is read as population, if present. 
     """
     if options.pairs:
         return [x[:-1].split() for x in open(options.pairs, "r").readlines()]
-    elif options.individuals:
-        raise Exception("Individuals not implemented")
     else:
         return [x for x in itertools.combinations(data.ind["IND"], 2)]
     
@@ -76,7 +75,15 @@ def get_job(data, pair, options):
     i1=np.where(data.ind["IND"]==p1)[0][0]
     g1=data.geno()[:,i1]
     
-    job={"pair":pair, "options":options}
+    population=None
+    if options.background=="population":
+        try:
+            population=pair[2]
+        except IndexError:
+            print("Must input list of pairs with population labels if using -b population")
+            raise
+        
+    job={"pair":pair[0:2], "options":options, "population":population, "p":None, "fixed_p":False}
     for chrom in  options.chromosomes:
         include = data.snp["CHR"]==chrom
         g0c=g0[include]
@@ -101,6 +108,37 @@ def make_jobs(data, options):
     jobs=[get_job(data, x, options) for x in pairs]
     jobs=[j for j in jobs if j["min_markers"]>=options.min_markers]
     return jobs
+
+################################################################################
+
+def population_p(jobs, options):
+    """
+    If using the population background option, population the "p" field in all
+    the jobs with the value of p from all the other pairs in that population,
+    but don't include the ones that are very different. 
+    """
+    #Get probabilities organised by population
+    population_probs=defaultdict(list)
+    for job in jobs:
+        hmms=[]
+        for chrom in job["options"].auto:
+            hmms.append(phibd_hmm.hmm2(job["pair"], job["chr"+chrom]["states"], job["chr"+chrom]["pos"]))    
+        multi_hmm=phibd_hmm.multi_hmm(hmms, tolerance=job["options"].tolerance, max_iters=job["options"].max_iters)
+        population_probs[jobs["population"]].append(multi_hmm.p)
+        
+    used_population_probs={}
+    for pop, probs in population_probs.iteritems():
+        if len(probs)>1:
+            xx=np.array(probs)
+            used_population_probs[pop]=np.mean(xx[xx<=np.median(xx)])
+            
+    for job in jobs:
+        if job["population"] in used_population_probs:
+            job["p"]=used_population_probs[job["population"]]
+            job["fixed_p"]=True
+    
+    return jobs
+    
     
 ################################################################################
 
@@ -111,6 +149,10 @@ def main(options):
     data=pyEigenstrat.load(options.eigenstrat)
     print("Building job list", file=sys.stderr)
     jobs=make_jobs(data, options)
+    if options.background=="population":
+        jobs=population_p(jobs)
+    elif options.background=="individual":
+        raise Exception("individual background option not implemented")
     print("Detecting IBD", file=sys.stderr)
     if options.min_chunk>0:
         print("Restricting to chunks > "+str(options.min_chunk)+"Mb", file=sys.stderr)
@@ -166,13 +208,13 @@ def estimate_sharing(job):
     We return, a dictionary containing the shared chunk length distributions 
     aggregated over the autosomes and X
     """
-    chunks=[]
-    het=[]
     hmms=[]
     for chrom in job["options"].auto:
         hmms.append(phibd_hmm.hmm2(job["pair"], job["chr"+chrom]["states"], job["chr"+chrom]["pos"]))
         
-    multi_hmm=phibd_hmm.multi_hmm(hmms, tolerance=job["options"].tolerance, max_iters=job["options"].max_iters)
+    multi_hmm=phibd_hmm.multi_hmm(hmms, tolerance=job["options"].tolerance, 
+                                  max_iters=job["options"].max_iters,
+                                  p=job["p"], fixed_p=job["fixed_p"])
     multi_hmm.train()
     chunks=multi_hmm.get_chunks()
     min_length_b=job["options"].min_chunk*1e6

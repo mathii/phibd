@@ -118,16 +118,22 @@ class multi_hmm(object):
     Contains multiple hmms
     """
     
-    def __init__(self, hmms, tolerance=0.001, max_iters=15):
+    def __init__(self, hmms, tolerance=0.001, max_iters=15, p=None, fixed_p=False):
         self.hmms=hmms
         #Set the p on each of the sub hmms to be equal to the mean
-        self.base_p=np.mean([hmm.p for hmm in self.hmms])
-        self.p=self.base_p
+        if p:
+            self.p=self.base_p=p
+        else:
+            self.p=self.base_p=np.mean([hmm.p for hmm in self.hmms])
+        
         for hmm in self.hmms:
             hmm.p=self.p
+
         self.max_iters=max_iters
         self.tol=tolerance
-
+        self.fixed_p=fixed_p
+        
+        
     def get_chunks(self):
         """
         get the chunk proportions
@@ -160,15 +166,18 @@ class multi_hmm(object):
        
     def train(self):
         """
-        Viterbi training
+        Viterbi training. If p is fixed then just use that p, otherwise 
+        try and learn it iteratively. 
         """
-        old_p=-1
-        iter=0
-        while abs(old_p-self.p)>self.tol and iter<self.max_iters:
-            old_p=self.p
+        if self.fixed_p:
             [hmm.Viterbi() for hmm in self.hmms]
-            prop=self.get_proportions()
-            #print("%1.4f\t%1.4f\t%1.4f\t%1.4f"%(self.p, prop[1], prop[2], prop[1]+prop[2]))
-            self.update_p()
-            iter+=1
+        else:
+            old_p=-1
+            iteration=0
+            while abs(old_p-self.p)>self.tol and iteration<self.max_iters:
+                old_p=self.p
+                [hmm.Viterbi() for hmm in self.hmms]
+                #print("%1.4f\t%1.4f\t%1.4f\t%1.4f"%(self.p, prop[1], prop[2], prop[1]+prop[2]))
+                self.update_p()
+                iteration+=1
             
