@@ -124,7 +124,7 @@ def population_p(jobs, options):
         for chrom in job["options"].auto:
             hmms.append(phibd_hmm.hmm2(job["pair"], job["chr"+chrom]["states"], job["chr"+chrom]["pos"]))    
         multi_hmm=phibd_hmm.multi_hmm(hmms, tolerance=job["options"].tolerance, max_iters=job["options"].max_iters)
-        population_probs[jobs["population"]].append(multi_hmm.p)
+        population_probs[job["population"]].append(multi_hmm.p)
         
     used_population_probs={}
     for pop, probs in population_probs.iteritems():
@@ -150,7 +150,7 @@ def main(options):
     print("Building job list", file=sys.stderr)
     jobs=make_jobs(data, options)
     if options.background=="population":
-        jobs=population_p(jobs)
+        jobs=population_p(jobs, options)
     elif options.background=="individual":
         raise Exception("individual background option not implemented")
     print("Detecting IBD", file=sys.stderr)
