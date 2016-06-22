@@ -24,7 +24,17 @@ class hmm2(object):
         self.p=np.mean(self.obs) #Estimate the sharing prob by genome-wide Problem
         self.n_states=self.emission_matrix().shape[0]
         
-                
+    def set_p(self):
+        """
+        Set p to the mean of the observations and reset hmm
+        """      
+        self.p=np.mean(self.obs) #Estimate the sharing prob by genome-wide Problem
+        if hasattr(self, "_vit"):
+            del self._vit
+        if hasattr(self, "_tb"):
+            del self._tb
+        return self.p
+          
     def emission_matrix(self):
         """
         indexed by IBD_state,shared
@@ -124,7 +134,7 @@ class multi_hmm(object):
         if p:
             self.p=self.base_p=p
         else:
-            self.p=self.base_p=np.mean([hmm.p for hmm in self.hmms])
+            self.p=self.base_p=np.mean([hmm.set_p() for hmm in self.hmms])
         
         for hmm in self.hmms:
             hmm.p=self.p

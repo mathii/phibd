@@ -1,6 +1,6 @@
 ## Analyse test results
-where <- "~/relatives/v13.1/v13.1_phibd_"
-where <- "~/relatives/v13.1/chaco_phibd_"
+where <- "~/relatives/v13.1/v13.1_phibd_population_"
+#where <- "~/relatives/v13.1/chaco_phibd_"
 
 data <- read.table(paste0(where, "results.txt"), as.is=TRUE, header=TRUE)
 data$mean <- ifelse(data$count==0, 0, data$mean)

@@ -6,6 +6,7 @@ from multiprocessing import Pool
 from collections import defaultdict
 import phibd_hmm, phibd_interpret
 import numpy as np
+import pdb
 
 ################################################################################
 #Default human-centric!
@@ -41,7 +42,8 @@ def parse_options():
     parser.add_argument('-y,', '--chry', type=str, default="24", help=
                         "Chromosome to treat as Y")
     parser.add_argument('-b,', '--background', type=str, default="none", help=
-                        "none|population|individual: what to use as background sharing")
+                        "none|population|individual|<float>: what to use as background sharing")
+    parser.add_argument( '--PRIMUS', action='store_true', help="output PRIMUS format")
 
     options=parser.parse_args()
     options.auto=options.auto.split(",")
@@ -131,6 +133,7 @@ def population_p(jobs, options):
         if len(probs)>1:
             xx=np.array(probs)
             used_population_probs[pop]=np.mean(xx[xx<=np.median(xx)])
+#            used_population_probs[pop]=np.min(xx)
             
     for job in jobs:
         if job["population"] in used_population_probs:
@@ -139,7 +142,19 @@ def population_p(jobs, options):
     
     return jobs
     
-    
+
+################################################################################
+
+def fix_p(jobs, fixed_p):
+    """
+    Set p to fixed value for all jobs
+    """
+    for job in jobs:
+        job["p"]=fixed_p
+        job["fixed_p"]=True
+
+    return jobs
+
 ################################################################################
 
 def main(options):
@@ -149,13 +164,22 @@ def main(options):
     data=pyEigenstrat.load(options.eigenstrat)
     print("Building job list", file=sys.stderr)
     jobs=make_jobs(data, options)
-    if options.background=="population":
-        jobs=population_p(jobs, options)
-    elif options.background=="individual":
-        raise Exception("individual background option not implemented")
+
+    #set fixed background to supplied value or to population/individual levels, as appropriate 
+    try: 
+        fixed_p=float(options.background)
+        jobs=fix_p(jobs, fixed_p)
+    except ValueError:
+        if options.background=="population":
+            jobs=population_p(jobs, options)
+        elif options.background=="individual":
+            raise Exception("individual background option not implemented")
+        elif options.background!="none":
+            raise Exception("-b background must be either a number, or <none|population|individual>")
+    
     print("Detecting IBD", file=sys.stderr)
     if options.min_chunk>0:
-        print("Restricting to chunks > "+str(options.min_chunk)+"Mb", file=sys.stderr)
+        print("Filter set at "+str(options.min_chunk)+"Mb", file=sys.stderr)
 
     if options.ncore>1:
         print("Using "+str(options.ncore)+" cores", file=sys.stderr)
@@ -166,6 +190,8 @@ def main(options):
         results=[estimate_sharing(job) for job in jobs]
     print("Interpreting results", file=sys.stderr)
     phibd_interpret.simple_autosomes(results)
+    if options.PRIMUS:
+        phibd_interpret.output_PRIMUS(results, options)
 
 ################################################################################
 
