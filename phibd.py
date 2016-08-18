@@ -85,7 +85,7 @@ def get_job(data, pair, options):
             print("Must input list of pairs with population labels if using -b population")
             raise
         
-    job={"pair":pair[0:2], "options":options, "population":population, "p":None, "fixed_p":False}
+    job={"pair":pair[0:2], "options":options, "population":population, "p":None, "fixed_p":False, "error":""}
     for chrom in  options.chromosomes:
         include = data.snp["CHR"]==chrom
         g0c=g0[include]
@@ -94,9 +94,11 @@ def get_job(data, pair, options):
         states=(g0c==g1c)[nonmissing]
         pos=data.snp["POS"][include][nonmissing]
         job["chr"+chrom]={"states":states, "pos":pos}
-    
+    pdb.set_trace()
     job["total_markers"]=sum([len(job["chr"+chrom]["pos"]) for chrom in  options.chromosomes])
     job["min_markers"]=min([len(job["chr"+chrom]["pos"]) for chrom in  options.chromosomes])
+    if job["min_markers"]<options.min_markers:
+        job["error"]="MIN_MARKERS_"+str(job["min_markers"])
     
     return job
     
@@ -108,7 +110,6 @@ def make_jobs(data, options):
     """
     pairs=make_pairs(data, options)
     jobs=[get_job(data, x, options) for x in pairs]
-    jobs=[j for j in jobs if j["min_markers"]>=options.min_markers]
     return jobs
 
 ################################################################################
@@ -187,7 +188,7 @@ def main(options):
         results=pool.map(estimate_sharing_wrapper, jobs)
         pool.close()
     else:
-        results=[estimate_sharing(job) for job in jobs]
+        results=[estimate_sharing_wrapper(job) for job in jobs]
     print("Interpreting results", file=sys.stderr)
     phibd_interpret.simple_autosomes(results)
     if options.PRIMUS:
@@ -203,22 +204,23 @@ def estimate_sharing_wrapper(job):
     try:
         return(estimate_sharing(job))
     except Exception:
-        print(">>> Error in pair "+job["pair"], file=sys.stderr)
+        print(">>> Error in pair "+"-".join(job["pair"]), file=sys.stderr)
         print(Exception, file=sys.stderr)
         return {"pair":job["pair"],
             "p":-1,
             "auto_SNPs":sum([len(job["chr"+x]["states"]) for x in AUTOSOMES]),
             "auto_total":-1,
             "auto_state_total":-1,
-            "auto_state_proportions":-1,
+            "auto_state_proportions":[-1,-1,-1],
             "auto_chunks":-1,
             "auto_lengths":-1,
-            "auto_counts":-1,
-            "auto_means":-1,
+            "auto_counts":np.zeros((2,2)),
+            "auto_means":np.zeros((2,2)),
             "auto_total_filtered":-1,
             "auto_state_total_filtered":-1,
-            "auto_state_proportions_filtered":-1,
+            "auto_state_proportions_filtered":[-1,-1,-1],
             "auto_lengths_filtered":-1,
+            "error":job["error"],
             }
 
         
@@ -234,6 +236,9 @@ def estimate_sharing(job):
     We return, a dictionary containing the shared chunk length distributions 
     aggregated over the autosomes and X
     """
+    if job["error"]:
+        raise Exception(job["error"])
+    
     hmms=[]
     for chrom in job["options"].auto:
         hmms.append(phibd_hmm.hmm2(job["pair"], job["chr"+chrom]["states"], job["chr"+chrom]["pos"]))

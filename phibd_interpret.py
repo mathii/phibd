@@ -20,10 +20,11 @@ def simple_autosomes(results):
     counts=[np.nansum(x["auto_counts"][:,1:]) for x in results]
     N_SNPs=[x["auto_SNPs"] for x in results]
     ps=[x["p"] for x in results]
-    print("\t".join(["ID1", "ID2", "N_SNP", "p", "mean", "count", "IBD1", "IBD2", "IBD", "IBD_filtered"]))
+    error=[x["error"] for x in results]
+    print("\t".join(["ID1", "ID2", "N_SNP", "p", "mean", "count", "IBD1", "IBD2", "IBD", "IBD_filtered", "error"]))
           
-    print("\n".join(["\t".join(["%s", "%d", "%1.4f", "%1.2f", "%d","%1.4f", "%1.4f","%1.4f", "%1.4f"])%x 
-                     for x in zip(pairs, N_SNPs, ps, means, counts, IBD1s, IBD2s, proportions, proportions_filtered)]))    
+    print("\n".join(["\t".join(["%s", "%d", "%1.4f", "%1.2f", "%d","%1.4f", "%1.4f","%1.4f", "%1.4f", "%s"])%x 
+                     for x in zip(pairs, N_SNPs, ps, means, counts, IBD1s, IBD2s, proportions, proportions_filtered, error)]))    
 
 ################################################################################
 #PRIMUS output
