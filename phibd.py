@@ -6,7 +6,6 @@ from multiprocessing import Pool
 from collections import defaultdict
 import phibd_hmm, phibd_interpret
 import numpy as np
-import pdb
 
 ################################################################################
 #Default human-centric!
@@ -27,7 +26,7 @@ def parse_options():
                         "List of pairs to test (default all pairs)")
     parser.add_argument('-m', '--min_chunk', type=float, default=10.0, help=
                         "Filtered results remove chunks less than this size")
-    parser.add_argument('-r', '--min_markers', type=int, default=200, help=
+    parser.add_argument('-r', '--min_markers', type=int, default=50, help=
                         "Only include pairs with at least this many markers in common on every chromosome")
     parser.add_argument('-n', '--ncore', type=int, default=1, help=
                         "number of cores to parallelize IBD computation")
@@ -94,7 +93,7 @@ def get_job(data, pair, options):
         states=(g0c==g1c)[nonmissing]
         pos=data.snp["POS"][include][nonmissing]
         job["chr"+chrom]={"states":states, "pos":pos}
-    pdb.set_trace()
+
     job["total_markers"]=sum([len(job["chr"+chrom]["pos"]) for chrom in  options.chromosomes])
     job["min_markers"]=min([len(job["chr"+chrom]["pos"]) for chrom in  options.chromosomes])
     if job["min_markers"]<options.min_markers:
@@ -274,6 +273,7 @@ def estimate_sharing(job):
             "auto_state_total_filtered":auto_state_total_filtered,
             "auto_state_proportions_filtered":auto_state_proportions_filtered,
             "auto_lengths_filtered":lengths_filtered,
+            "error":job["error"],
             }
     
     
