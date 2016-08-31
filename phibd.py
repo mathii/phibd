@@ -11,7 +11,7 @@ import numpy as np
 #Default human-centric!
 
 AUTOSOMES=["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11",
-           "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21"]
+           "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21", "22"]
 
 ################################################################################
 
@@ -26,8 +26,10 @@ def parse_options():
                         "List of pairs to test (default all pairs)")
     parser.add_argument('-m', '--min_chunk', type=float, default=10.0, help=
                         "Filtered results remove chunks less than this size")
-    parser.add_argument('-r', '--min_markers', type=int, default=50, help=
-                        "Only include pairs with at least this many markers in common on every chromosome")
+    parser.add_argument('-r', '--min_markers', type=int, default=200, help=
+                        "Only include chromsomes with at least this many markers in common")
+    parser.add_argument('-c', '--min_chromosomes', type=int, default=10, help=
+                        "Only include pairs with at least this many chromsomes with sufficient markers")
     parser.add_argument('-n', '--ncore', type=int, default=1, help=
                         "number of cores to parallelize IBD computation")
     parser.add_argument('-t', '--max_iters', type=int, default=15, help=
@@ -85,18 +87,27 @@ def get_job(data, pair, options):
             raise
         
     job={"pair":pair[0:2], "options":options, "population":population, "p":None, "fixed_p":False, "error":""}
-    for chrom in  options.chromosomes:
+    
+    n_chr=0
+    
+    for chrom in  options.auto:
         include = data.snp["CHR"]==chrom
+        chr_to_include=[]
         g0c=g0[include]
         g1c=g1[include]
         nonmissing=np.logical_and(g0c!=9, g1c!=9)
         states=(g0c==g1c)[nonmissing]
         pos=data.snp["POS"][include][nonmissing]
-        job["chr"+chrom]={"states":states, "pos":pos}
-
-    job["total_markers"]=sum([len(job["chr"+chrom]["pos"]) for chrom in  options.chromosomes])
-    job["min_markers"]=min([len(job["chr"+chrom]["pos"]) for chrom in  options.chromosomes])
-    if job["min_markers"]<options.min_markers:
+        if len(pos)>=options.min_markers:
+            job["chr"+chrom]={"states":states, "pos":pos}
+            chr_to_include.append(chrom)
+            n_chr+=1
+    
+    job["chromosomes"]=chr_to_include
+    job["total_markers"]=sum([len(job["chr"+chrom]["pos"]) for chrom in  options.auto])
+    job["n_chr"]=n_chr
+    
+    if n_chr<options.min_chromosomes:
         job["error"]="MIN_MARKERS_"+str(job["min_markers"])
     
     return job
@@ -123,7 +134,7 @@ def population_p(jobs, options):
     population_probs=defaultdict(list)
     for job in jobs:
         hmms=[]
-        for chrom in job["options"].auto:
+        for chrom in job["chromosomes"]:
             hmms.append(phibd_hmm.hmm2(job["pair"], job["chr"+chrom]["states"], job["chr"+chrom]["pos"]))    
         multi_hmm=phibd_hmm.multi_hmm(hmms, tolerance=job["options"].tolerance, max_iters=job["options"].max_iters)
         population_probs[job["population"]].append(multi_hmm.p)
