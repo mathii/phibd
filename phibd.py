@@ -104,7 +104,7 @@ def get_job(data, pair, options):
             n_chr+=1
     
     job["chromosomes"]=chr_to_include
-    job["total_markers"]=sum([len(job["chr"+chrom]["pos"]) for chrom in  options.auto])
+    job["total_markers"]=sum([len(job["chr"+chrom]["pos"]) for chrom in  job["chromosomes"])
     job["n_chr"]=n_chr
     
     if n_chr<options.min_chromosomes:
