@@ -218,7 +218,7 @@ def estimate_sharing_wrapper(job):
         print(Exception, file=sys.stderr)
         return {"pair":job["pair"],
             "p":-1,
-            "auto_SNPs":sum([len(job["chr"+x]["states"]) for x in AUTOSOMES]),
+            "auto_SNPs":sum([len(job["chr"+x]["states"]) for x in job["chromosomes"]]),
             "auto_total":-1,
             "auto_state_total":-1,
             "auto_state_proportions":[-1,-1,-1],
@@ -272,7 +272,7 @@ def estimate_sharing(job):
 
     return {"pair":job["pair"],
             "p":multi_hmm.p,
-            "auto_SNPs":sum([len(job["chr"+x]["states"]) for x in AUTOSOMES]),
+            "auto_SNPs":sum([len(job["chr"+x]["states"]) for x in job["chromosomes"]]),
             "auto_total":auto_total,
             "auto_state_total":auto_state_total,
             "auto_state_proportions":auto_state_proportions,
