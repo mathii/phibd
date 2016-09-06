@@ -1,11 +1,12 @@
 # Estimating ibd and relatedness in pseudo-haploid samples
 
 from __future__ import division, print_function
-import sys, argparse, pyEigenstrat, itertools
+import sys, argparse, pyEigenstrat, itertools, math
 from multiprocessing import Pool
 from collections import defaultdict
 import phibd_hmm, phibd_interpret
 import numpy as np
+import pdb
 
 ################################################################################
 #Default human-centric!
@@ -108,8 +109,8 @@ def get_job(data, pair, options):
     job["n_chr"]=n_chr
     
     if n_chr<options.min_chromosomes:
-        job["error"]="MIN_MARKERS_"+str(job["min_markers"])
-    
+        job["error"]="N_CHR_"+str(job["n_chr"])
+    pdb.set_trace()
     return job
     
 ################################################################################
@@ -142,7 +143,7 @@ def population_p(jobs, options):
     used_population_probs={}
     for pop, probs in population_probs.iteritems():
         if len(probs)>1:
-            xx=np.array(probs)
+            xx=np.array([pp for pp in probs if not math.isnan(pp)])
             used_population_probs[pop]=np.mean(xx[xx<=np.median(xx)])
 #            used_population_probs[pop]=np.min(xx)
             
