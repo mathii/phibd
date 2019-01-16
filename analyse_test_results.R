@@ -1,8 +1,8 @@
 ## Analyse test results
-where <- "~/relatives/v13.1/v13.1_phibd_population_"
+where <- "~/relatives/v15.2/v15.2_Ganj_Dareh_p73_"
 #where <- "~/relatives/v13.1/chaco_phibd_"
 
-data <- read.table(paste0(where, "results.txt"), as.is=TRUE, header=TRUE)
+data <- read.table(paste0(where, "results.txt"), as.is=TRUE, header=TRUE, fill=TRUE)
 data$mean <- ifelse(data$count==0, 0, data$mean)
 
 ## Remove SGDP

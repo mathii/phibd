@@ -5,6 +5,7 @@ Created on 20 Apr 2016
 '''
 from __future__ import division, print_function
 import numpy as np
+import pdb
 
 ################################################################################
 
@@ -18,7 +19,7 @@ class hmm2(object):
         Constructor
         '''
         self.pair=pair
-        self.obs=obs
+        self.obs=obs.astype(int)
         self.pos=pos
         self.n_obs=len(obs)
         self.p=np.mean(self.obs) #Estimate the sharing prob by genome-wide Problem
@@ -96,7 +97,7 @@ class hmm2(object):
         vit=np.zeros((self.n_states, len(self.obs)), dtype=np.float) #Viterbi matrix 
         tb=np.zeros((self.n_states,len(self.obs)), dtype=np.short) #Traceback matrix
         em=self.emission_matrix()
-        
+
         vit[:,0]=em[:,self.obs[0]] 
 
         for i in xrange(1,len(self.obs)):

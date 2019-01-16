@@ -1,0 +1,72 @@
+\documentclass[10pt,a4]{article}
+\usepackage{fullpage,geometry}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\textheight=9.0in
+\usepackage{palatino}
+% \pagestyle{empty}
+\usepackage{enumitem}
+\raggedbottom
+%\raggedright
+\setlength{\tabcolsep}{0in}
+\geometry{a4paper,tmargin=1in,bmargin=1in,lmargin=1in,rmargin=1in,headheight=0in,headsep=0in,footskip=.3in}
+
+\title{Notes on IBD estimation for pseudohaploid data}
+\author{Iain Mathieson}
+\begin{document}
+\maketitle
+
+\section{Background}
+
+A number of ancient DNA papers have reported individuals from the same site (i.e. cemetary), and you often find related individuals. Typically first- (and sometimes second-) degree relatives are removed from analysis. These are usually identified just by looking at allele sharing rates compared to background in the population. In general these relationships are interesting to archaeologists - they typically have a lot of information about the distribution and status of individuals in a cemetery, and it's helpful to be able to reconstruct family relationships and structures. Of course, this (pedigree reconstruction) is a standard problem in genetics, but in the ancient DNA context there are typically two issues. One is the low coverage of the data (i.e. no diploid calls and high rates of missing data) and the other is that the pedigrees are typically very incomplete. 
+
+Ancient DNA is typically quite low coverage (The most common data type; ``1240k capture'' typically ends up with 0.1-1x coverage at each of 1.24 million targeted sites). So for analysis, we usually use ``pseudohaploid'' data. So if we have $n$ reads from one sample covering a particular SNP, we pick one of the reads at random to represent that individual at that SNP. So the data looks haploid in the sense that it's either 0 or 1 at each SNP, but neighboring SNPs are not necessarily from the same chromosome, hence the ``pseudo''. Note that typically the data is represented as 0/0 or 1/1 in the file format - e.g. VCF. Confusingly, some people call this ``pseudodiploid'' because it looks diploid (albeit homozygous everywhere).
+
+In this note, we suggest a method for estimating pairwise IBD on pseudohaploid samples. If this could be calibrated correctly, then the outputs (IBD0, 1 and 2 rates) could be fed into standard pedigree reconstruction software. One additional thing to note is that there is potentially more information available. At some sites you have more than one read, especially for higher coverage samples so, although it's still typically not possible to make diploid calls, you can compute genotype likelihoods that are more informative than the pseudohaploid data. That would be a potential extension, but we don't address that here.
+
+Here's a recently published method for estimating relationships from this kind of data:\\ \texttt{https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0195491}. \\ They actually describe the test data I'm including. Our extension over this would be that we use actual IBD patterns rather than just allele sharing rates. To be fair, we don't actually know how much that would help - but at least this paper represents the state-of-the art solution to the problem for the purposes of ancient DNA. I know there are much better solutions (largely based on IBD) for the case where you have diploid data. 
+
+\section{Model}
+
+We set up an HMM as follows: Consider two individuals $i=0,1$, with pseudohaploid data at $j=1\dots n$ SNPs. Then at each SNP, there are three possible states (observations): Either the individuals have the same (pseudo-)genotype, the differ, or at least one of them is missing. We ignore the last case and restrict to sites with observations: $X_{ij}\in {0, 1}$ respectively. The hidden states $Y_j=0,1 and 2$ correspond to the two individuals being IBD0, 1 or 2 at each SNP. Then, at each SNP, the emission probabilities are given by
+\[
+\bordermatrix{
+     &X= 0    & X=1      \cr
+  Y=0   & 1-p  & p  \cr
+  Y=1   & 0.75(1-p)     & 0.25(1+3p)  \cr
+   Y=2  & 0.5(1-p) & 0.5(1+p) \cr
+} \mbox{    \underline{Check that you agree with these!}}
+\]
+where $p$ is the probability that two randomly chosen chromosomes from the population have the same allele. E.g. if $Y=0$ (i.e. you're IBD0), then $\mathbb{P}(X=1)=p$ is just the probability that a random chromosome matches. If you're IBD2, then $\mathbb{P}(X=1)$ is the probability that you picked one of the shared chromosomes (0.5) plus the probability that you picked the unshared chromsomes but they still matched ($0.5p$), and so on. iThere are a number of ways to estimate $p$. We prefer to take the empirical value from the population, but you could also try to learn it as part of the HMM, or pre-specify it. Note that $p$ is the key parameter here, and is necessary to use the pseuo-haploid data
+
+For the transition probability we use a rate of $1\times 10^{-8}$ per-base That's not really correct unless you're talking about first degree relatives. It should really depend on the degree of relatedness. Also you probably shouldn't go from IBD0 to IBD2 directly. That said, we'd guess that it doesn't make a huge difference (but we should check).
+
+Having set up the HMM, we can just run the Viterbi algorithm or posterior decoding etc, to get the IBD calls/probabilities at each SNP. 
+
+\section{Implementation}
+
+We implemented this in the \emph{phibd} program. You can run with the following command line:
+
+\begin{verbatim}
+python phibd.py -e CordedWareData -b population -p corded_ware_pairs > results
+\end{verbatim}
+Here -e specifies the data (in [packed] Eigenstrat format - CordedWareData.snp, .ind and .geno)) -b specifies the method of calculating $p$, -p specifies the pairs to run on. YOU need the \emph{pyeigenstrat} package which can be obtained from \texttt{https://github.com/mathii/pyEigenstrat}.
+
+I prepared a dataset of data from 13 individuals from the Corded Ware Population (Bronze Age central Germany) which contain some relatedness. In particular individua I1541 is a first-degree relative of both I1538 and I1540. We don't know exactly what the relationship is, but I1538 and I1540 have the same mitochondrial type, which might suggest that they are brothers and sons of I1541. \emph{phibd} finds the first degree relationship correctly - inferring 100\% IBD1 for the pairs I1541-I1538 and I1541-I1540. It finds 30\% IBD1 for I1538-I1540, suggesting maybe a grandfather-father-son relationship. On the other hand, it's possible that this an error - I1538 and I1540 have the same mitochondrial haplogroup so we originally thought they were brothers. There are a few other pairs that look like second or third degree relatives as well. 
+
+\section{Potential analyses}
+
+So this is really just a sketch of an idea and an implementation. I haven't really tested the software except to run it on this data (and other ancient populations) to see that it found the correct first degree relatives. I haven't tested it on simulations or extensively profiled it. Some ideas for moving forward:
+
+\begin{itemize}
+\item
+  Simulate some data with appropriate amounts of missing data and different degrees of relatedness etc, and check that this approach actually works. The actually HMM code is pretty simple so it might be easier for you just to implement it yourself rather than working on my code, which is mostly about loading the data etc. But happy either way.
+\item
+  I think in particular, one issue will be calibrating the IBD estimates for more distant relatedness. Would be good to get a sense of that so that they can be fed into pedigree reconstruction algorithms.
+\item
+  I chose this test dataset because there seem to be quite a few relatives. But I can easily start finding more data. Ultimately we'll try to run it on all the data that exists. As I said, most of the first and second degree relatives are known, but we can try to discover more distant relatives and pedigrees.
+ 
+\end{itemize}
+
+\end{document}
+
